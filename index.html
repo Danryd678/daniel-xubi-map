@@ -412,8 +412,8 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
           </button>
           <h2 id="keyTitle">CARTO API key</h2>
-          <p id="keyStatus">No key saved yet.</p>
-          <p>The map tiles come from CARTO and now need a free API key. Paste yours below — it is saved only on this phone, so you enter it once. Get a free key at <a href="https://carto.com/basemaps/apikey/" target="_blank" rel="noopener">carto.com/basemaps/apikey</a>.</p>
+          <p id="keyStatus">Using the built-in key.</p>
+          <p>The map tiles come from CARTO and use a key built into this site, so the map works for everyone straight away. To use your own key instead, paste it below — it is saved only on this phone and overrides the built-in one. Get a free key at <a href="https://carto.com/basemaps/apikey/" target="_blank" rel="noopener">carto.com/basemaps/apikey</a>.</p>
           <div class="field">
             <label for="keyInput">API key</label>
             <input id="keyInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your CARTO basemaps key">
@@ -543,14 +543,15 @@
         return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(p.lat + ',' + p.lng);
       }
 
-      /* ---------- CARTO API key (saved on this phone) ---------- */
+      /* ---------- CARTO API key (built-in default; a custom key saved on this phone overrides it) ---------- */
+      var DEFAULT_CARTO_KEY = 'cb1_4n9r_1_072902d1a3ada3e097332385';
       var CARTO_KEY_LS = 'nearby-places-map:cartoKey';
       var cartoKey = '';
       try { cartoKey = (window.localStorage.getItem(CARTO_KEY_LS) || '').trim(); } catch (e) { cartoKey = ''; }
+      function activeCartoKey() { return cartoKey || DEFAULT_CARTO_KEY; }
       var map = null, tileLayer = null;
       function cartoTileUrl() {
-        var base = 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png';
-        return cartoKey ? base + '?key=' + encodeURIComponent(cartoKey) : base;
+        return 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=' + encodeURIComponent(activeCartoKey());
       }
       function applyTiles() {
         if (!map || typeof L === 'undefined') return;
@@ -561,10 +562,10 @@
         }).addTo(map);
       }
       function refreshKeyUI() {
-        var n = $('#keyNotice'); if (n) n.hidden = !!cartoKey;
+        var n = $('#keyNotice'); if (n) n.hidden = !!activeCartoKey();
         var b = $('#keyBtn'); if (b) b.classList.toggle('saved', !!cartoKey);
         var st = $('#keyStatus');
-        if (st) st.textContent = cartoKey ? 'A key is saved on this phone. Paste a new one to replace it.' : 'No key saved yet.';
+        if (st) st.textContent = cartoKey ? 'A key is saved on this phone. Paste a new one to replace it, or remove it to go back to the built-in key.' : 'Using the built-in key, so the map works for everyone. Paste your own key below to override it.';
       }
       function openKeyPanel() {
         $('#keyInput').value = cartoKey;
@@ -603,7 +604,7 @@
         closeKeyPanel();
         applyTiles();
         refreshKeyUI();
-        toast('CARTO key removed');
+        toast('Custom key removed — using the built-in key');
       });
       refreshKeyUI();
 
