@@ -156,6 +156,45 @@
         font-weight: 800; padding: 9px 13px; min-height: 40px;
       }
 
+      /* ---------- CARTO API key ---------- */
+      #keyNotice {
+        position: absolute; top: 12px; left: 12px; right: 12px; z-index: 700;
+        display: flex; align-items: center; gap: 10px;
+        background: var(--panel); border: 1px solid var(--violet); border-radius: 14px;
+        padding: 12px 14px; font-size: 13.5px; font-weight: 600; line-height: 1.4;
+        backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        box-shadow: var(--shadow);
+      }
+      #keyNotice[hidden] { display: none; }
+      #keyNotice svg { width: 19px; height: 19px; flex: none; color: var(--violet); }
+      #keyNotice button {
+        margin-left: auto; flex: none; border: none; border-radius: 10px;
+        background: var(--grad); color: #0b0f1e;
+        font-weight: 800; padding: 9px 13px; min-height: 40px; font-size: 13.5px;
+      }
+      #keyBtn.saved { border-color: var(--teal); color: var(--teal); }
+      #keyPanel {
+        position: fixed; inset: 0; z-index: 1300;
+        display: grid; place-items: end center;
+        background: rgba(4, 6, 14, 0.66);
+      }
+      #keyPanel[hidden] { display: none; }
+      #keyCard {
+        position: relative;
+        width: 100%; max-width: 480px; max-height: 88dvh; overflow-y: auto;
+        background: var(--panel-solid); border: 1px solid var(--stroke);
+        border-radius: 24px 24px 0 0; box-shadow: var(--shadow);
+        padding: 22px 18px calc(20px + env(safe-area-inset-bottom));
+      }
+      #keyCard h2 { margin: 0 44px 8px 0; font-size: 20px; font-weight: 800; }
+      #keyCard p { margin: 0 0 14px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+      #keyCard p a { color: var(--teal); font-weight: 700; }
+      #keyStatus { font-weight: 700; color: var(--text); }
+      @media (min-width: 760px) {
+        #keyPanel { place-items: center; padding: 20px; }
+        #keyCard { border-radius: 24px; }
+      }
+
       /* ---------- FAB ---------- */
       #fabAdd {
         position: absolute; right: 14px; bottom: calc(14px + 34vh + env(safe-area-inset-bottom)); z-index: 650;
@@ -325,6 +364,9 @@
           <option value="2000" selected>2 km</option>
           <option value="5000">5 km</option>
         </select>
+        <button id="keyBtn" class="icon-btn" type="button" aria-label="CARTO API key settings" title="CARTO API key">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M11 12 20.5 2.5M17 6l3 3M14 9l2.2 2.2"/></svg>
+        </button>
         <button id="locateBtn" class="icon-btn" type="button" aria-label="Find my location">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="7.5"/></svg>
         </button>
@@ -338,6 +380,12 @@
         <div id="pickBanner" hidden>
           <span>Tap the map where your place is</span>
           <button id="pickCancel" type="button">Cancel</button>
+        </div>
+
+        <div id="keyNotice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M11 12 20.5 2.5M17 6l3 3M14 9l2.2 2.2"/></svg>
+          <span>Map tiles need a CARTO API key to load.</span>
+          <button id="keyNoticeBtn" type="button">Add key</button>
         </div>
 
         <button id="fabAdd" type="button">
@@ -356,6 +404,26 @@
 
         <section id="sheet" aria-live="polite"></section>
         <div id="toast" role="status"></div>
+      </div>
+
+      <div id="keyPanel" hidden>
+        <div id="keyCard" role="dialog" aria-modal="true" aria-labelledby="keyTitle">
+          <button class="sheet-close" type="button" id="keyClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+          <h2 id="keyTitle">CARTO API key</h2>
+          <p id="keyStatus">No key saved yet.</p>
+          <p>The map tiles come from CARTO and now need a free API key. Paste yours below — it is saved only on this phone, so you enter it once. Get a free key at <a href="https://carto.com/basemaps/apikey/" target="_blank" rel="noopener">carto.com/basemaps/apikey</a>.</p>
+          <div class="field">
+            <label for="keyInput">API key</label>
+            <input id="keyInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your CARTO basemaps key">
+          </div>
+          <p class="form-error" id="keyError" hidden></p>
+          <div class="d-actions">
+            <button class="btn btn-primary" type="button" id="keySave">Save key</button>
+            <button class="btn btn-ghost" type="button" id="keyRemove">Remove key</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -475,18 +543,79 @@
         return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(p.lat + ',' + p.lng);
       }
 
+      /* ---------- CARTO API key (saved on this phone) ---------- */
+      var CARTO_KEY_LS = 'nearby-places-map:cartoKey';
+      var cartoKey = '';
+      try { cartoKey = (window.localStorage.getItem(CARTO_KEY_LS) || '').trim(); } catch (e) { cartoKey = ''; }
+      var map = null, tileLayer = null;
+      function cartoTileUrl() {
+        var base = 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png';
+        return cartoKey ? base + '?key=' + encodeURIComponent(cartoKey) : base;
+      }
+      function applyTiles() {
+        if (!map || typeof L === 'undefined') return;
+        if (tileLayer) map.removeLayer(tileLayer);
+        tileLayer = L.tileLayer(cartoTileUrl(), {
+          maxZoom: 20,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(map);
+      }
+      function refreshKeyUI() {
+        var n = $('#keyNotice'); if (n) n.hidden = !!cartoKey;
+        var b = $('#keyBtn'); if (b) b.classList.toggle('saved', !!cartoKey);
+        var st = $('#keyStatus');
+        if (st) st.textContent = cartoKey ? 'A key is saved on this phone. Paste a new one to replace it.' : 'No key saved yet.';
+      }
+      function openKeyPanel() {
+        $('#keyInput').value = cartoKey;
+        $('#keyError').hidden = true;
+        refreshKeyUI();
+        $('#keyPanel').hidden = false;
+      }
+      function closeKeyPanel() { $('#keyPanel').hidden = true; }
+      $('#keyBtn').addEventListener('click', openKeyPanel);
+      $('#keyNoticeBtn').addEventListener('click', openKeyPanel);
+      $('#keyClose').addEventListener('click', closeKeyPanel);
+      $('#keyPanel').addEventListener('click', function (e) { if (e.target === this) closeKeyPanel(); });
+      $('#keyInput').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); $('#keySave').click(); }
+      });
+      $('#keySave').addEventListener('click', function () {
+        var v = $('#keyInput').value.trim();
+        var err = $('#keyError');
+        if (!v) {
+          err.textContent = 'Paste your CARTO API key first.';
+          err.hidden = false;
+          $('#keyInput').focus();
+          return;
+        }
+        cartoKey = v;
+        try { window.localStorage.setItem(CARTO_KEY_LS, cartoKey); } catch (e) { /* storage unavailable */ }
+        closeKeyPanel();
+        applyTiles();
+        refreshKeyUI();
+        toast('CARTO key saved — map tiles reloading');
+      });
+      $('#keyRemove').addEventListener('click', function () {
+        cartoKey = '';
+        try { window.localStorage.removeItem(CARTO_KEY_LS); } catch (e) { /* ignore */ }
+        $('#keyInput').value = '';
+        closeKeyPanel();
+        applyTiles();
+        refreshKeyUI();
+        toast('CARTO key removed');
+      });
+      refreshKeyUI();
+
       /* ---------- Map ---------- */
       if (typeof L === 'undefined') {
         setStatus('Map could not load', 'Check your internet connection, then reopen this page');
         $('#listScroll').innerHTML = '<div class="list-empty"><strong>Map unavailable</strong>The map library could not be downloaded. Check your connection and try again.</div>';
         return;
       }
-      var map = L.map('map', { zoomControl: false }).setView([FALLBACK.lat, FALLBACK.lng], 13);
+      map = L.map('map', { zoomControl: false }).setView([FALLBACK.lat, FALLBACK.lng], 13);
       L.control.zoom({ position: 'topright' }).addTo(map);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-      }).addTo(map);
+      applyTiles();
       var placeLayer = L.layerGroup().addTo(map);
       var meMarker = null, meCircle = null;
 
